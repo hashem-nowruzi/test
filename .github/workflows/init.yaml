@@ -1,18 +1,43 @@
-name: GitHub Actions Demo
-run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
-on: [push, create]
+name: Setup repository
+on: [create]
 jobs:
-  Explore-GitHub-Actions:
+  setup:
+    name: Reinitialize repository
     runs-on: ubuntu-latest
     steps:
-      - run: echo "🎉 The job was automatically triggered by a ${{ github.event_name }} event."
-      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
-      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
-      - name: Check out repository code
-        uses: actions/checkout@v3
-      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
-      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
-      - name: List files in the repository
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install cookiecutter
+
+      - name: Scaffolding repository
+        # cookiecutter is command-line utility to create projects from templates
+        # https://github.com/cookiecutter/cookiecutter
+        #
+        # --no-input      Do not prompt for parameters and only use
+        #                 cookiecutter.json file content
+        #
+        # --output-dir    Where to output the generated project dir into
+        run: cookiecutter . --no-input --output-dir ./cookiecutter-temp
+
+      - name: Prepare root directory
+        shell: bash
+        # Remove all files and folder exepct .git/ and cookiecutter-temp/
         run: |
-          ls ${{ github.workspace }}
-      - run: echo "🍏 This job's status is ${{ job.status }}."
+          find ./ -maxdepth 1 \
+          ! -name '.git' \
+          ! -name 'cookiecutter-temp' \
+          ! -name '.' \
+          ! -exec rm -rf {} +
+
+      - name: Move files to root
+        shell: bash
+        # The cookiecutter-temp/ folder contains a single folder which is the
+        # generated project by cookiecutter. We want to move all the project
+        # files into the root directory so we can reinitialize git in the next step
+        run: |
+          rsync -r ./cookiecutter-temp/*/ . && \
+          rm -rf ./cookiecutter-temp/
+
